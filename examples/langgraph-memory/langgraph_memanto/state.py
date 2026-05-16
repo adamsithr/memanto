@@ -21,4 +21,4 @@ class ResearchState(TypedDict):
     messages: Annotated[List[dict], add_messages]
     memanto_agent_id: str
     research_topic: str
-    findings: Annotated[List[str], add_messages]
+    findings: List[str]
