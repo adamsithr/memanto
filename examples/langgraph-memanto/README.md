@@ -51,6 +51,12 @@ python run_research.py
 python run_writer.py
 ```
 
+## Offline Validation
+
+```bash
+python validate_offline.py
+```
+
 ## File Structure
 
 ```
@@ -58,6 +64,8 @@ examples/langgraph-memanto/
 ├── README.md                  # This file
 ├── requirements.txt           # Python dependencies
 ├── .env.example               # API key template
+├── .gitignore                 # Keeps local keys and virtualenvs out of git
+├── validate_offline.py        # Standard-library structural smoke test
 ├── langgraph_memanto/
 │   ├── __init__.py
 │   ├── state.py               # Shared LangGraph state schema
