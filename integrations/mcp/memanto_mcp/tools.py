@@ -179,7 +179,7 @@ def _error_payload(model_cls: type[T], message: str, **defaults: Any) -> T:
 def _format_exception(exc: Exception) -> str:
     """Render an exception as a short human-readable string."""
     if isinstance(exc, MemantoError):
-        return exc.message
+        return str(exc.message)
     return f"{type(exc).__name__}: {exc}"
 
 
