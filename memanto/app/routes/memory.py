@@ -397,16 +397,25 @@ async def recall(
         )
 
     recall_cfg = _config_manager.get_recall_config()
-    limit = (
+    raw_limit = (
         request.limit
         if request.limit is not None
         else recall_cfg.get("limit", settings.RECALL_LIMIT)
     )
-    min_similarity = (
+    raw_min_similarity = (
         request.min_similarity
         if request.min_similarity is not None
         else recall_cfg.get("min_similarity")
     )
+    try:
+        limit = int(raw_limit)
+        min_similarity = (
+            None if raw_min_similarity is None else float(raw_min_similarity)
+        )
+    except (TypeError, ValueError) as e:
+        raise HTTPException(
+            status_code=400, detail=f"Invalid recall configuration: {e}"
+        )
     CostGuard.validate_k_limit(limit)
 
     try:

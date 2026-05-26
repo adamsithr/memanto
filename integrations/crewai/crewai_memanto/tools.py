@@ -141,7 +141,7 @@ class RecallInput(BaseModel):
         ),
     )
     min_similarity: float | None = Field(
-        default=0.0,
+        default=None,
         ge=0.0,
         le=1.0,
         description="Minimum similarity score from 0.0 to 1.0 to filter low-relevance memories.",
@@ -239,7 +239,7 @@ class MemantoRecallTool(BaseTool):
         query: str,
         limit: int = 10,
         memory_types: str = "",
-        min_similarity: float | None = 0.0,
+        min_similarity: float | None = None,
     ) -> str:
         type_list = (
             [t.strip() for t in memory_types.split(",") if t.strip()]
