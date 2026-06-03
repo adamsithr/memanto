@@ -9,12 +9,15 @@ from __future__ import annotations
 
 import os
 import sys
+import warnings
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from dotenv import load_dotenv
 
-from langgraph_memanto.graph import run_research
+warnings.filterwarnings("ignore", module="langgraph")
+
+from .langgraph_memanto.graph import run_research
 
 load_dotenv()
 
@@ -36,8 +39,12 @@ def main():
 
     print("\n--- Messages ---")
     for msg in result.get("messages", []):
-        role = msg.get("role", "?")
-        content = msg.get("content", "")
+        if hasattr(msg, "type"):
+            role = msg.type
+            content = msg.content
+        else:
+            role = msg.get("role", "?")
+            content = msg.get("content", "")
         print(f"\n[{role.upper()}]\n{content[:500]}")
 
 

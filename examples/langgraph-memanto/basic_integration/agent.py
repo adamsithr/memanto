@@ -16,10 +16,10 @@ def build_graph(tools: List[callable]):
     # Using a fast and capable model
     import os
     llm = ChatOpenAI(
-        model=os.environ.get("LLM_MODEL", "gpt-4o-mini"),
+        model=os.environ.get("LLM_MODEL", "openai/gpt-4o-mini"),
         temperature=0,
-        api_key=os.environ.get("OPENAI_API_KEY"),
-        base_url=os.environ.get("OPENAI_API_BASE") or None
+        api_key=os.environ.get("OPENROUTER_API_KEY") or os.environ.get("OPENAI_API_KEY"),
+        base_url=os.environ.get("OPENAI_API_BASE", "https://openrouter.ai/api/v1")
     )
     llm_with_tools = llm.bind_tools(tools)
     

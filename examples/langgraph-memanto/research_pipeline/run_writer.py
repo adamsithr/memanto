@@ -40,7 +40,7 @@ def main():
     llm = ChatOpenAI(
         api_key=OPENROUTER_API_KEY,
         base_url="https://openrouter.ai/api/v1",
-        model="anthropic/claude-3.5-haiku",
+        model=os.environ.get("LLM_MODEL", "openai/gpt-4o-mini"),
         temperature=0.7,
     )
 
@@ -51,23 +51,19 @@ def main():
 
     # Recall memories
     print("\n[Step 1: Recalling memories from Memanto...]")
-    recall_result = memanto_recall(
-        state=state,
-        api_key=MEMANTO_API_KEY,
-        query=f"key findings about {TOPIC}",
-        limit=10,
-    )
-    recall_content = recall_result.get("messages", [{}])[0].get("content", "")
+    recall_result = memanto_recall.invoke({
+        "query": f"key findings about {TOPIC}",
+        "limit": 10,
+    })
+    recall_content = str(recall_result)
     print(f"Recall result:\n{recall_content}\n")
 
     # RAG answer
     print("[Step 2: Synthesizing via RAG...]")
-    answer_result = memanto_answer(
-        state=state,
-        api_key=MEMANTO_API_KEY,
-        question=f"Summarize all research findings about {TOPIC} in a clear executive briefing",
-    )
-    answer_content = answer_result.get("messages", [{}])[0].get("content", "")
+    answer_result = memanto_answer.invoke({
+        "question": f"Summarize all research findings about {TOPIC} in a clear executive briefing"
+    })
+    answer_content = str(answer_result)
     print(f"Answer:\n{answer_content}\n")
 
     # LLM write briefing

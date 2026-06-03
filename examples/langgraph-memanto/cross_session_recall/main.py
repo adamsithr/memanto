@@ -3,7 +3,8 @@ import os
 from dotenv import load_dotenv
 from .graph import create_research_graph
 from langchain_core.messages import HumanMessage
-from core.memanto_tools import MemantoManager, create_memanto_tools
+from core.memanto_tools import create_memanto_tools
+from memanto.cli.client.sdk_client import SdkClient
 
 
 def run_session(agent_id, user_id, task, thread_id):
@@ -14,14 +15,10 @@ def run_session(agent_id, user_id, task, thread_id):
         print("Please set MOORCHEH_API_KEY in .env")
         return
 
-    manager = MemantoManager(api_key=api_key)
-    client = manager.setup_agent(
-        agent_id=agent_id,
-        description="LangGraph Research Assistant with Long-Term Memory",
-    )
+    client = SdkClient(api_key=api_key)
 
     tools = create_memanto_tools(client, agent_id)
-    app = create_research_graph("gpt-4o", tools)
+    app = create_research_graph("poolside/laguna-xs.2:free", tools)
 
     config = {"configurable": {"thread_id": thread_id}}
 

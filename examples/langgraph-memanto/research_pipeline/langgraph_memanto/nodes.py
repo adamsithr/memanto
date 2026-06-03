@@ -44,9 +44,9 @@ def _get_memanto_api_key() -> str:
 def _get_llm():
     """Build a flexible ChatOpenAI model."""
     return ChatOpenAI(
-        model=os.getenv("LLM_MODEL", "gpt-4o-mini"),
-        api_key=os.getenv("OPENAI_API_KEY") or OPENROUTER_API_KEY,
-        base_url=os.getenv("OPENAI_API_BASE", "https://openrouter.ai/api/v1" if OPENROUTER_API_KEY else None) or None,
+        model=os.getenv("LLM_MODEL", "openai/gpt-4o-mini"),
+        api_key=os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY") or OPENROUTER_API_KEY,
+        base_url=os.getenv("OPENAI_API_BASE", "https://openrouter.ai/api/v1"),
         temperature=0.7,
     )
 
@@ -67,16 +67,21 @@ def _build_memanto_remember_tool(agent_id: str):
         tags: list[str] | None = None,
     ) -> str:
         """Store a structured memory in Memanto for later cross-session recall."""
-        result = _memanto_remember(
-            state={"memanto_agent_id": agent_id},
-            api_key=_get_memanto_api_key(),
-            memory_type=memory_type or "observation",
-            title=(title or "")[:100],
-            content=(content or "")[:500],
-            confidence=float(confidence),
-            tags=tags or [],
-        )
-        return result.get("messages", [{}])[0].get("content", "")
+        from memanto.cli.client.sdk_client import SdkClient
+        client = SdkClient(api_key=_get_memanto_api_key())
+        try:
+            res = client.remember(
+                agent_id=agent_id,
+                content=(content or "")[:500],
+                memory_type=memory_type or "observation",
+                title=(title or "")[:100],
+                tags=tags or [],
+                source="langgraph-research",
+                confidence=float(confidence)
+            )
+            return f"Successfully stored memory: {res.get('memory_id')}"
+        except Exception as e:
+            return f"Error storing memory: {e}"
 
     return memanto_remember_tool
 
@@ -85,112 +90,76 @@ def _build_memanto_remember_tool(agent_id: str):
 # Research Agent nodes
 # ---------------------------------------------------------------------------
 
-def research_agent(state: Dict[str, Any]) -> Dict[str, Any]:
+def research_agent_factory(tools: list):
     """
-    The Research Agent analyzes a topic and stores key findings as Memanto memories.
-
-    Uses tool calling: the LLM invokes memanto_remember as a real bound tool,
-    demonstrating actual cross-session memory persistence.
+    Returns a node function for the Research Agent.
     """
-    topic = state.get("research_topic", "")
-    agent_id = state.get("memanto_agent_id", "langgraph-default")
+    memanto_remember = next((t for t in tools if t.name == "memanto_remember"), None)
+    tools_to_bind = [memanto_remember] if memanto_remember else tools
     llm = _get_llm()
+    llm_with_tools = llm.bind_tools(tools_to_bind)
 
-    # Bind memanto_remember as an actual LangChain tool the LLM can call.
-    tools = [_build_memanto_remember_tool(agent_id)]
-    llm_with_tools = llm.bind_tools(tools)
+    def research_agent(state: Dict[str, Any]) -> Dict[str, Any]:
+        topic = state.get("research_topic", "")
+        system_prompt = (
+            f"You are a Senior Market Research Analyst specialized in '{topic}'.\n"
+            f"Your job is to research this topic thoroughly and store every significant "
+            f"finding as a structured Memanto memory using the memanto_remember tool.\n\n"
+            f"Research approach:\n"
+            f"1. Think about the key aspects of '{topic}'\n"
+            f"2. Use the memanto_remember tool to store at least 3 findings\n"
+            f"3. Each memory should be atomic: one fact/observation per memory\n\n"
+            f"Memory types: fact, observation, decision, learning, event\n"
+            f"Confidence: 1.0 for verified facts, 0.7-0.9 for observations\n"
+            f"Tags: relevant keywords like ['AI', 'market', 'trends']\n\n"
+            f"After storing memories, summarize what you found in 2-3 sentences."
+        )
 
-    system_prompt = (
-        f"You are a Senior Market Research Analyst specialized in '{topic}'.\n"
-        f"Your job is to research this topic thoroughly and store every significant "
-        f"finding as a structured Memanto memory using the memanto_remember tool.\n\n"
-        f"Research approach:\n"
-        f"1. Think about the key aspects of '{topic}'\n"
-        f"2. Use the memanto_remember tool to store at least 3 findings\n"
-        f"3. Each memory should be atomic: one fact/observation per memory\n\n"
-        f"Memory types: fact, observation, decision, learning, event\n"
-        f"Confidence: 1.0 for verified facts, 0.7-0.9 for observations\n"
-        f"Tags: relevant keywords like ['AI', 'market', 'trends']\n\n"
-        f"After storing memories, summarize what you found in 2-3 sentences."
-    )
-
-    messages = [{"role": "system", "content": system_prompt}]
-    response = llm_with_tools.invoke(messages)
-    content = response.content if hasattr(response, "content") else str(response)
-
-    # Execute any tool calls the model made
-    tool_calls = getattr(response, "tool_calls", []) or []
-    tool_results = []
-    findings = []
-    for tc in tool_calls:
-        if tc.get("name") == "memanto_remember":
-            args = tc.get("args", {})
-            result = tools[0].invoke(args)
-            tool_results.append({
-                "role": "tool",
-                "content": result,
-                "name": "memanto_remember",
-                "tool_call_id": tc.get("id", f"remember_{len(tool_results)}"),
-            })
-            title = args.get("title", "unknown")
-            findings.append(title)
-
-    all_messages = list(tool_results)
-    all_messages.append({"role": "assistant", "content": content})
-
-    return {
-        "messages": all_messages,
-        "findings": findings,
-    }
+        messages = [{"role": "system", "content": system_prompt}] + state.get("messages", [])
+        response = llm_with_tools.invoke(messages)
+        
+        return {"messages": [response]}
+        
+    return research_agent
 
 
-def writer_agent(state: Dict[str, Any]) -> Dict[str, Any]:
+def writer_agent_factory(tools: list):
     """
-    The Writer Agent retrieves stored memories and writes an executive briefing.
-
-    It calls memanto_recall to fetch all research memories, then uses the LLM
-    to synthesize them into a written briefing.
+    Returns a node function for the Writer Agent.
     """
-    topic = state.get("research_topic", "")
-    agent_id = state.get("memanto_agent_id", "langgraph-default")
+    # Exclude remember so writer only recalls/answers
+    tools_to_bind = [t for t in tools if t.name in ("memanto_recall", "memanto_answer")]
     llm = _get_llm()
+    llm_with_tools = llm.bind_tools(tools_to_bind)
 
-    # First, recall memories
-    recall_result = memanto_recall(
-        state={**state, "memanto_agent_id": agent_id},
-        api_key=_get_memanto_api_key(),
-        query=f"research findings about {topic}",
-        limit=10,
-    )
+    def writer_agent(state: Dict[str, Any]) -> Dict[str, Any]:
+        topic = state.get("research_topic", "")
+        synthesis_prompt = (
+            f"You are a Technical Briefing Writer.\n"
+            f"Topic: {topic}\n\n"
+            f"Your goal is to write a clear, data-driven executive briefing on '{topic}'.\n"
+            f"First, use the 'memanto_recall' and 'memanto_answer' tools to retrieve the research findings that were just stored.\n"
+            f"Then, using ONLY that retrieved information, write the executive briefing. "
+            f"Do not fabricate data. Cite sources based on the memories."
+        )
 
-    # Then answer a synthesis question
-    answer_result = memanto_answer(
-        state={**state, "memanto_agent_id": agent_id},
-        api_key=_get_memanto_api_key(),
-        question=f"Provide a detailed summary of all research findings about {topic}",
-    )
+        # Inject the system prompt and append the tool calls that the writer_agent might have already done in this loop
+        # We need to filter out previous messages from the research agent to avoid confusing the writer,
+        # OR just append a system message instructing the writer to begin its job.
+        
+        writer_messages = []
+        for msg in state.get("messages", []):
+            if hasattr(msg, "name") and msg.name in ("memanto_recall", "memanto_answer"):
+                writer_messages.append(msg)
+            elif hasattr(msg, "tool_calls") and any(tc.get("name") in ("memanto_recall", "memanto_answer") for tc in msg.tool_calls):
+                writer_messages.append(msg)
+        
+        messages = [{"role": "system", "content": synthesis_prompt}] + writer_messages
+        response = llm_with_tools.invoke(messages)
 
-    recall_content = recall_result.get("messages", [{}])[0].get("content", "")
-    answer_content = answer_result.get("messages", [{}])[0].get("content", "")
-
-    synthesis_prompt = (
-        f"You are a Technical Briefing Writer.\n"
-        f"Topic: {topic}\n\n"
-        f"Retrieved memories:\n{recall_content}\n\n"
-        f"RAG Answer:\n{answer_content}\n\n"
-        f"Write a clear, data-driven executive briefing on '{topic}' "
-        f"using ONLY the information from the retrieved memories above. "
-        f"Do not fabricate data. Cite sources."
-    )
-
-    response = llm.invoke(synthesis_prompt)
-    content = response.content if hasattr(response, "content") else str(response)
-
-    return {
-        "messages": [
-            {"role": "assistant", "content": content},
-        ],
-    }
+        return {"messages": [response]}
+        
+    return writer_agent
 
 
 def should_continue(state: Dict[str, Any]) -> Literal["research", "writer", "end"]:
@@ -201,7 +170,14 @@ def should_continue(state: Dict[str, Any]) -> Literal["research", "writer", "end
     if not messages:
         return "research"
     last = messages[-1]
-    role = last.get("role", "")
-    if role == "assistant":
+    
+    # Check if last message is from the assistant (either object or dict)
+    is_assistant = False
+    if hasattr(last, "type") and last.type == "ai":
+        is_assistant = True
+    elif isinstance(last, dict) and last.get("role") == "assistant":
+        is_assistant = True
+        
+    if is_assistant:
         return "writer"
     return "end"

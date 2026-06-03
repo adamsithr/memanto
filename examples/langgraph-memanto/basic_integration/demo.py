@@ -2,11 +2,14 @@ import os
 import sys
 import uuid
 import time
+import warnings
 from memanto.cli.client.sdk_client import SdkClient
 from langchain_core.messages import HumanMessage
 from .agent import build_graph
 from core.memanto_tools import create_memanto_tools
 from dotenv import load_dotenv
+
+warnings.filterwarnings("ignore", module="langgraph")
 
 def main():
     load_dotenv()
@@ -20,25 +23,14 @@ def main():
         print("Please set it: export MOORCHEH_API_KEY='your_key'")
         sys.exit(1)
         
-    if not os.getenv("OPENAI_API_KEY"):
-        print("❌ Error: OPENAI_API_KEY environment variable is missing.")
-        print("Please set it: export OPENAI_API_KEY='your_key'")
+    if not os.getenv("OPENAI_API_KEY") and not os.getenv("OPENROUTER_API_KEY"):
+        print("❌ Error: OPENAI_API_KEY or OPENROUTER_API_KEY environment variable is missing.")
+        print("Please set one: export OPENROUTER_API_KEY='your_key'")
         sys.exit(1)
 
     # Initialize Memanto Client
-    # Since SdkClient uses API key from the environment/init, we'll pass it if needed,
-    # but SdkClient(api_key=...) is the signature in SDK.
     client = SdkClient(api_key=os.environ["MOORCHEH_API_KEY"])
     agent_id = f"langgraph-demo-{uuid.uuid4().hex[:6]}"
-    
-    # Try to create an agent
-    print(f"[*] Creating Memanto agent: {agent_id}...")
-    try:
-        client.create_agent(agent_id=agent_id, description="LangGraph cross-session memory agent")
-        client.activate_agent(agent_id=agent_id)
-    except Exception as e:
-        print(f"❌ Error creating or activating agent '{agent_id}': {e}")
-        sys.exit(1)
 
     tools = create_memanto_tools(client, agent_id)
     graph = build_graph(tools)

@@ -1,5 +1,0 @@
-langgraph>=0.0.60
-langchain>=0.2.0
-langchain-openai>=0.1.7
-memanto>=0.1.0
-python-dotenv>=1.0.1

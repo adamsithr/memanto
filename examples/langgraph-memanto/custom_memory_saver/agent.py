@@ -115,10 +115,10 @@ class AgentState(MessagesState):
 def create_llm():
     """Create the LLM with Memanto tools bound."""
     llm = ChatOpenAI(
-        model=os.environ.get("LLM_MODEL", "gpt-4o-mini"),
+        model=os.environ.get("LLM_MODEL", "openai/gpt-4o-mini"),
         temperature=0,
-        api_key=os.environ.get("OPENAI_API_KEY"),
-        base_url=os.environ.get("OPENAI_API_BASE") or None
+        api_key=os.environ.get("OPENROUTER_API_KEY") or os.environ.get("OPENAI_API_KEY"),
+        base_url=os.environ.get("OPENAI_API_BASE", "https://openrouter.ai/api/v1")
     )
     from memanto.cli.client.sdk_client import SdkClient
     client = SdkClient(api_key=os.environ.get("MOORCHEH_API_KEY", ""))

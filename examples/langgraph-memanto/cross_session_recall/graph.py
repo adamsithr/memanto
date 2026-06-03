@@ -17,9 +17,9 @@ class State(TypedDict):
 def create_research_graph(model_name: str, tools: list):
     import os
     llm = ChatOpenAI(
-        model=os.environ.get("LLM_MODEL", model_name),
-        api_key=os.environ.get("OPENAI_API_KEY"),
-        base_url=os.environ.get("OPENAI_API_BASE") or None
+        model=os.environ.get("LLM_MODEL", "openai/gpt-4o-mini"),
+        api_key=os.environ.get("OPENROUTER_API_KEY") or os.environ.get("OPENAI_API_KEY"),
+        base_url=os.environ.get("OPENAI_API_BASE", "https://openrouter.ai/api/v1")
     )
     llm_with_tools = llm.bind_tools(tools)
 

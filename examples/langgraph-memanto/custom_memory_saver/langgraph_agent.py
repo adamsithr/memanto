@@ -43,7 +43,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from typing_extensions import TypedDict
 
-from memanto_memory import (
+from .memanto_memory import (
     MemantoMemory,
     build_memory_context,
 )
@@ -71,7 +71,7 @@ def _get_llm():
     Respects the LLM_MODEL env var.  Falls back to a simple HTTP wrapper
     so the example works without langchain LLM packages.
     """
-    model = os.getenv("LLM_MODEL", "openrouter/google/gemini-2.0-flash-001")
+    model = os.getenv("LLM_MODEL", "openrouter/openai/gpt-4o-mini")
     provider, _, model_name = model.partition("/")
 
     # ---- OpenRouter (default) ----
@@ -91,7 +91,7 @@ def _get_llm():
 class _OpenRouterLLM:
     """Minimal LLM wrapper using OpenRouter's chat completions API."""
 
-    def __init__(self, model: str = "google/gemini-2.0-flash-001"):
+    def __init__(self, model: str = "openai/gpt-4o-mini"):
         self.model = model
         self.api_key = os.getenv("OPENROUTER_API_KEY", "")
 

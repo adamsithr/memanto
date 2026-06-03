@@ -23,26 +23,17 @@ MemoryType = Literal[
     "error",
 ]
 
+def create_memanto_tools(client: SdkClient, agent_id: str):
 
-class MemantoManager:
-    def __init__(self, api_key: str):
-        self.client = SdkClient(api_key=api_key)
-
-    def setup_agent(self, agent_id: str, description: str | None = None):
+    def _do_setup():
         try:
-            self.client.create_agent(
-                agent_id=agent_id,
-                pattern="tool",
-                description=description,
-            )
+            client.create_agent(agent_id=agent_id, pattern="tool")
         except Exception:
             pass
-
-        self.client.activate_agent(agent_id, duration_hours=6)
-        return self.client
-
-
-def create_memanto_tools(client: SdkClient, agent_id: str):
+        try:
+            client.activate_agent(agent_id, duration_hours=6)
+        except Exception:
+            pass
 
     @tool
     def memanto_remember(
@@ -58,15 +49,27 @@ def create_memanto_tools(client: SdkClient, agent_id: str):
         """
         tag_list = [t.strip() for t in tags.split(",") if t.strip()] if tags else []
 
-        result = client.remember(
-            agent_id=agent_id,
-            memory_type=memory_type,
-            title=title,
-            content=content,
-            confidence=confidence,
-            tags=tag_list,
-            source="langgraph-agent",
-        )
+        try:
+            result = client.remember(
+                agent_id=agent_id,
+                memory_type=memory_type,
+                title=title,
+                content=content,
+                confidence=confidence,
+                tags=tag_list,
+                source="langgraph-agent",
+            )
+        except Exception:
+            _do_setup()
+            result = client.remember(
+                agent_id=agent_id,
+                memory_type=memory_type,
+                title=title,
+                content=content,
+                confidence=confidence,
+                tags=tag_list,
+                source="langgraph-agent",
+            )
 
         return f"Memory stored: {result['memory_id']}"
 
@@ -88,12 +91,21 @@ def create_memanto_tools(client: SdkClient, agent_id: str):
             else None
         )
 
-        result = client.recall(
-            agent_id=agent_id,
-            query=query,
-            limit=limit,
-            type=type_list,
-        )
+        try:
+            result = client.recall(
+                agent_id=agent_id,
+                query=query,
+                limit=limit,
+                type=type_list,
+            )
+        except Exception:
+            _do_setup()
+            result = client.recall(
+                agent_id=agent_id,
+                query=query,
+                limit=limit,
+                type=type_list,
+            )
 
         memories = result.get("memories", [])
         if not memories:
@@ -113,7 +125,12 @@ def create_memanto_tools(client: SdkClient, agent_id: str):
         Ask a question and get an AI-generated answer grounded in the agent's long-term memory.
         Uses RAG to synthesize insights from multiple stored memories.
         """
-        result = client.answer(agent_id=agent_id, question=question)
+        try:
+            result = client.answer(agent_id=agent_id, question=question)
+        except Exception:
+            _do_setup()
+            result = client.answer(agent_id=agent_id, question=question)
+            
         return f"Answer: {result.get('answer')}"
 
     return [memanto_remember, memanto_recall, memanto_answer]
