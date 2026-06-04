@@ -10,11 +10,11 @@ from __future__ import annotations
 import os
 from typing import Any, Literal
 
-from core.memanto_tools import create_memanto_tools
 from dotenv import load_dotenv
 from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
 
+from langgraph_memanto import create_memanto_tools
 from memanto.cli.client.sdk_client import SdkClient
 
 client = SdkClient(api_key=os.environ.get("MOORCHEH_API_KEY", ""))
