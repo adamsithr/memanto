@@ -258,7 +258,7 @@ class DirectClient:
         self._read_service = None
         self._agent_service = None
         self._session_service = None
-        self._daily_summary_service = None
+        self._daily_analysis_service = None
         self._export_service = None
 
     # Lazy initializers
@@ -302,13 +302,15 @@ class DirectClient:
             self._session_service = get_session_service()
         return self._session_service
 
-    def _get_daily_summary_service(self):
-        """Return (or create) the ``DailySummaryService`` singleton."""
-        if self._daily_summary_service is None:
-            from memanto.app.services.daily_summary_service import DailySummaryService
+    def _get_daily_analysis_service(self):
+        """Return (or create) the ``DailyAnalysisService`` singleton."""
+        if self._daily_analysis_service is None:
+            from memanto.app.services.daily_analysis_service import (
+                DailyAnalysisService,
+            )
 
-            self._daily_summary_service = DailySummaryService(api_key=self.api_key)
-        return self._daily_summary_service
+            self._daily_analysis_service = DailyAnalysisService(api_key=self.api_key)
+        return self._daily_analysis_service
 
     def _get_export_service(self):
         """Return (or create) the ``MemoryExportService`` singleton."""
@@ -1027,7 +1029,7 @@ class DirectClient:
             date,
         )
 
-        service = self._get_daily_summary_service()
+        service = self._get_daily_analysis_service()
 
         summary_result = service.generate_summary(
             agent_id, date, output_path=output_path
@@ -1072,7 +1074,7 @@ class DirectClient:
             date,
         )
 
-        service = self._get_daily_summary_service()
+        service = self._get_daily_analysis_service()
         conflict_result = service.generate_conflict_report(agent_id, date)
         return {"conflicts": conflict_result}
 

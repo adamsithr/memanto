@@ -1,7 +1,8 @@
 """
-Daily Summary Service
+Daily Analysis Service
 
-Aggregates session MD files for a specific day and generates an AI summary.
+Aggregates session MD files for a specific day and produces two outputs:
+the AI daily summary and the conflict report.
 """
 
 import json
@@ -21,8 +22,10 @@ from memanto.app.utils.temporal_helpers import (
 )
 
 
-class DailySummaryService:
-    """Service for generating daily summaries from session MD files"""
+class DailyAnalysisService:
+    """Service for analyzing a day's session MD files — generates the
+    daily AI summary and the conflict report.
+    """
 
     def __init__(
         self,
@@ -31,7 +34,7 @@ class DailySummaryService:
         summaries_dir: Path | None = None,
     ):
         """
-        Initialize the daily summary service
+        Initialize the daily analysis service.
 
         Args:
             api_key: Moorcheh API key (passed from DirectClient config)
