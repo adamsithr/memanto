@@ -4,13 +4,17 @@ MEMANTO CLI Configuration Manager
 Handles configuration persistence:
   - API key: stored in ~/.memanto/.env (sensitive, not committed)
   - Other config: stored in ~/.memanto/config.yaml (non-sensitive)
+  - Connections registry: stored in ~/.memanto/connections.json
 """
 
 import importlib
+import json
 import os
 from pathlib import Path
 
 from dotenv import load_dotenv, set_key
+
+from memanto.app.clients.backend import Backend, parse_backend
 
 yaml = importlib.import_module("yaml")
 
@@ -27,6 +31,7 @@ class ConfigManager:
         self.config_dir = config_dir or Path.home() / ".memanto"
         self.config_file = self.config_dir / "config.yaml"
         self.env_file = self.config_dir / ".env"
+        self.connections_file = self.config_dir / "connections.json"
 
         # Ensure config directory exists
         self.config_dir.mkdir(parents=True, exist_ok=True)
@@ -60,8 +65,65 @@ class ConfigManager:
             pass  # Windows may not support chmod
 
     def is_configured(self) -> bool:
-        """Check if CLI has an API key configured."""
+        """Check if the active backend is configured.
+
+        Cloud: requires an API key.
+        On-prem: requires ``backend: on-prem`` persisted in config.yaml
+        (server reachability is verified at runtime, not here).
+        """
+        if self.get_backend() == Backend.ON_PREM:
+            return True
         return self.get_api_key() is not None
+
+    # Backend selection
+
+    def get_backend(self) -> Backend:
+        """Get the active backend (cloud or on-prem)."""
+        return parse_backend(self.load_yaml().get("backend"))
+
+    def set_backend(self, backend: Backend) -> None:
+        """Persist the active backend choice."""
+        self.set("backend", backend.value)
+
+    # On-prem config
+
+    def get_onprem_config(self) -> dict:
+        """Get on-prem config dict with defaults."""
+        defaults = {
+            "url": "http://localhost:8080",
+            "embedding_provider": "",
+        }
+        defaults.update(self.load_yaml().get("on_prem", {}))
+        return defaults
+
+    def set_onprem_config(
+        self,
+        embedding_provider: str | None = None,
+        url: str | None = None,
+    ) -> None:
+        """Persist on-prem config values."""
+        data = self.load_yaml()
+        on_prem = data.setdefault("on_prem", {})
+        if embedding_provider is not None:
+            on_prem["embedding_provider"] = embedding_provider
+        if url is not None:
+            on_prem["url"] = url
+        self.save_yaml(data)
+
+    # Per-backend data directory
+
+    def get_data_dir(self) -> Path:
+        """Root data dir for the active backend.
+
+        Cloud users keep ``~/.memanto/`` (no migration). On-prem data is
+        isolated under ``~/.memanto/on-prem/`` so switching backends does
+        not mix agents/sessions across them.
+        """
+        if self.get_backend() == Backend.ON_PREM:
+            d = self.config_dir / "on-prem"
+            d.mkdir(parents=True, exist_ok=True)
+            return d
+        return self.config_dir
 
     # YAML Config (non-sensitive settings)
 
@@ -255,3 +317,59 @@ class ConfigManager:
         data["cli"]["interactive_mode"] = interactive_mode
         data["cli"]["smart_parse"] = smart_parse
         self.save_yaml(data)
+
+    # Connections registry — tracks which agents have memanto installed where.
+    # Forward-only: only updated by future install/remove calls, not backfilled.
+
+    def load_connections(self) -> dict:
+        """Load the connections registry from ~/.memanto/connections.json."""
+        if not self.connections_file.exists():
+            return {}
+        try:
+            with open(self.connections_file, encoding="utf-8") as f:
+                data = json.load(f)
+            return data if isinstance(data, dict) else {}
+        except Exception:
+            return {}
+
+    def _save_connections(self, data: dict) -> None:
+        """Atomically write the connections registry."""
+        tmp = self.connections_file.with_suffix(".json.tmp")
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, sort_keys=True)
+        os.replace(tmp, self.connections_file)
+        try:
+            self.connections_file.chmod(0o600)
+        except OSError:
+            pass
+
+    def add_connection(
+        self, agent_name: str, project_dir: str | None, is_global: bool
+    ) -> None:
+        """Record that ``agent_name`` was installed at ``project_dir`` (or globally)."""
+        data = self.load_connections()
+        entry = data.setdefault(agent_name, {"projects": [], "installed_global": False})
+        if is_global:
+            entry["installed_global"] = True
+        elif project_dir:
+            abs_path = str(Path(project_dir).resolve())
+            if abs_path not in entry["projects"]:
+                entry["projects"].append(abs_path)
+        self._save_connections(data)
+
+    def remove_connection(
+        self, agent_name: str, project_dir: str | None, is_global: bool
+    ) -> None:
+        """Inverse of ``add_connection``."""
+        data = self.load_connections()
+        if agent_name not in data:
+            return
+        entry = data[agent_name]
+        if is_global:
+            entry["installed_global"] = False
+        elif project_dir:
+            abs_path = str(Path(project_dir).resolve())
+            entry["projects"] = [p for p in entry.get("projects", []) if p != abs_path]
+        if not entry.get("projects") and not entry.get("installed_global"):
+            del data[agent_name]
+        self._save_connections(data)
