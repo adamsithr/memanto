@@ -126,6 +126,7 @@ def _graph_hash() -> str:
         return "0"
 
 
+@st.cache_resource(show_spinner=False)
 def _load(_graph_version: str = ""):
     """Set up Memanto + compile the graph once per ``_graph_version`` value.
 
@@ -152,9 +153,10 @@ st.set_page_config(
 
 # ── API key guard ─────────────────────────────────────────────────────────────
 
-missing = [
-    k for k in ("MOORCHEH_API_KEY", "OPENROUTER_API_KEY") if not os.environ.get(k)
-]
+missing = [k for k in ("MOORCHEH_API_KEY",) if not os.environ.get(k)]
+if not os.environ.get("OPENROUTER_API_KEY") and not os.environ.get("OPENAI_API_KEY"):
+    missing.append("OPENROUTER_API_KEY or OPENAI_API_KEY")
+
 if missing:
     st.error(
         f"Missing env vars: {', '.join(f'`{k}`' for k in missing)}. "

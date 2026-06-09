@@ -152,8 +152,8 @@ def _parse_memories_response(response) -> ExtractedMemories:
     # developer opts in but not emitted by default to INFO log sinks.
     logger.info("_parse_memories_response: model returned %d chars", len(text))
     logger.debug(
-        "_parse_memories_response: raw model output:\n%s",
-        text[:1500] + ("...[truncated]" if len(text) > 1500 else ""),
+        "_parse_memories_response: raw model output suppressed (len=%d)",
+        len(text),
     )
 
     # Strip markdown code fences and numbered list prefixes
