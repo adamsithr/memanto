@@ -97,7 +97,7 @@ class MemoryRecord(BaseModel):
             "scope_id": self.scope_id,
             "actor_id": self.actor_id,
             "source": self.source,
-            "confidence": self.confidence,
+            "confidence": self.compute_confidence(),
             "status": self.status,
             # Provenance & Trust fields
             "provenance": self.provenance,

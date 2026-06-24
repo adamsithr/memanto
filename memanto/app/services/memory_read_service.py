@@ -848,39 +848,38 @@ class MemoryReadService:
         if validated_at:
             formatted["validated_at"] = validated_at.isoformat()
 
-        # skip trust score computation reconstructs MemoryRecord and runs compute_confidence() + trust_score() per result. Skipped for speed.
-        ## Compute trust score if we have all required fields
-        # try:
-        ## Reconstruct MemoryRecord to use compute_confidence and trust_score methods
-        #     created_at_str = get_field("created_at")
-        #     created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00')) if created_at_str else datetime.utcnow()
-        #     memory_rec = MemoryRecord(
-        #         id=item.get("id"),
-        #         type=get_field("memory_type", "memory_type") or "fact",
-        #         title="", # Not stored in search results
-        #         content=item.get("text", ""),
-        #         scope_type=get_field("scope_type") or "agent",
-        #         scope_id=get_field("scope_id") or "unknown",
-        #         actor_id=get_field("actor_id") or "unknown",
-        #         source=get_field("source") or "agent",
-        #         confidence=get_field("confidence") or 0.8,
-        #         status=get_field("status") or "active",
-        #         provenance=provenance,
-        #         validation_count=validation_count,
-        #         contradiction_detected=contradiction_detected,
-        #         created_at=created_at,
-        #         validated_at=validated_at
-        #     )
-        #     if superseded_by:
-        #         memory_rec.superseded_by = superseded_by
-        #     if supersedes:
-        #         memory_rec.supersedes = supersedes
+        # Compute trust score if we have all required fields
+        try:
+            # Reconstruct MemoryRecord to use compute_confidence and trust_score methods
+            created_at_str = get_field("created_at")
+            created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00')) if created_at_str else datetime.utcnow()
+            memory_rec = self._memory_record_cls(
+                id=item.get("id"),
+                type=get_field("memory_type", "memory_type") or "fact",
+                title="",  # Not stored in search results
+                content=item.get("text", ""),
+                scope_type=get_field("scope_type") or "agent",
+                scope_id=get_field("scope_id") or "unknown",
+                actor_id=get_field("actor_id") or "unknown",
+                source=get_field("source") or "agent",
+                confidence=get_field("confidence") or 0.8,
+                status=get_field("status") or "active",
+                provenance=provenance,
+                validation_count=validation_count,
+                contradiction_detected=contradiction_detected,
+                created_at=created_at,
+                validated_at=validated_at
+            )
+            if superseded_by:
+                memory_rec.superseded_by = superseded_by
+            if supersedes:
+                memory_rec.supersedes = supersedes
 
-        # Add computed confidence and trust score
-        #     formatted["computed_confidence"] = memory_rec.compute_confidence()
-        #     formatted["trust_score"] = memory_rec.trust_score()
-        # except Exception as e:
-        ## If computation fails, just return basic formatted item
-        #     pass
+            # Add computed confidence and trust score
+            formatted["computed_confidence"] = memory_rec.compute_confidence()
+            formatted["trust_score"] = memory_rec.trust_score()
+        except Exception as e:
+            # If computation fails, just return basic formatted item
+            pass
 
         return formatted
