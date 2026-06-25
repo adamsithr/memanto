@@ -4,6 +4,7 @@ MEMANTO Web UI Router
 Serves the Web UI static files and provides UI-specific API endpoints.
 """
 
+import ipaddress
 import os
 import signal
 import time
@@ -30,6 +31,21 @@ _config_manager = ConfigManager()
 STATIC_DIR = Path(__file__).parent.parent / "static"
 
 
+def _is_loopback(host: str | None) -> bool:
+    """Return True if *host* is any loopback address (IPv4, IPv6, or IPv4-mapped IPv6)."""
+    if host is None:
+        return False
+    try:
+        addr = ipaddress.ip_address(host)
+        if addr.is_loopback:
+            return True
+        # ::ffff:127.0.0.1 – IPv4-mapped IPv6 – is_loopback returns False
+        ipv4_mapped = getattr(addr, "ipv4_mapped", None)
+        return ipv4_mapped is not None and ipv4_mapped.is_loopback
+    except ValueError:
+        return False
+
+
 async def _require_local(request: Request) -> None:
     """Reject requests that do not originate from the loopback interface.
 
@@ -39,7 +55,7 @@ async def _require_local(request: Request) -> None:
     the filesystem, or replace API credentials without authentication.
     """
     client_host = request.client.host if request.client else None
-    if client_host not in ("127.0.0.1", "::1"):
+    if not _is_loopback(client_host):
         raise HTTPException(
             status_code=403,
             detail=(
