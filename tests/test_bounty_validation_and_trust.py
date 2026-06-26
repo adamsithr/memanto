@@ -87,3 +87,23 @@ def test_read_service_adds_computed_trust_metrics():
     assert "trust_score" in formatted
     assert formatted["computed_confidence"] == 0.96  # 0.9 * 1.0 + 2 * 0.03
     assert formatted["trust_score"]["trust_level"] == "high"
+
+
+def test_timezone_aware_created_at_does_not_raise_error():
+    """Verify that timezone-aware created_at timestamps do not raise TypeError in compute_confidence or trust_score"""
+    memory = MemoryRecord(
+        type="preference",
+        title="test-pref",
+        content="I prefer dark mode",
+        scope_type="agent",
+        scope_id="agent-abc",
+        actor_id="user-123",
+        source="user",
+        confidence=0.9,
+        created_at=datetime.fromisoformat("2026-06-26T12:00:00+00:00")
+    )
+    
+    # Should not raise TypeError: can't subtract offset-naive and offset-aware datetimes
+    assert memory.compute_confidence() == 0.9
+    assert memory.trust_score()["age_days"] >= 0
+
