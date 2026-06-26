@@ -452,4 +452,4 @@ class SessionService:
                 data = json.load(f)
                 sessions.append(Session(**data))
 
-        return sorted(sessions, key=lambda s: s.started_at, reverse=True)
+        return sorted(sessions, key=lambda s: as_utc_naive(s.started_at), reverse=True)

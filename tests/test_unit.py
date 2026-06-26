@@ -119,6 +119,36 @@ class TestSessionService:
         assert payload.agent_id == "test-agent"
         assert payload.expires_at.tzinfo is not None
 
+    def test_list_sessions_handles_mixed_started_at_timezone(self, session_service):
+        """Session listing should sort mixed aware and naive started_at values."""
+        older_session = Session(
+            session_id="sess-older",
+            session_token="token-older",
+            agent_id="older-agent",
+            namespace="memanto_agent_older-agent",
+            started_at=datetime(2026, 3, 19, 13, 0, 0),
+            expires_at=datetime(2099, 3, 19, 20, 0, 0),
+            status=SessionStatus.ACTIVE,
+        )
+        newer_session = Session(
+            session_id="sess-newer",
+            session_token="token-newer",
+            agent_id="newer-agent",
+            namespace="memanto_agent_newer-agent",
+            started_at="2026-03-19T14:00:00Z",
+            expires_at="2099-03-19T20:00:00Z",
+            status=SessionStatus.ACTIVE,
+        )
+        session_service._save_session(older_session)
+        session_service._save_session(newer_session)
+
+        sessions = session_service.list_sessions()
+
+        assert [session.session_id for session in sessions] == [
+            "sess-newer",
+            "sess-older",
+        ]
+
     def test_validate_expired_session(self, session_service):
         """Test session validation fails for expired session"""
         # Create session with very short duration
