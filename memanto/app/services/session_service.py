@@ -362,6 +362,12 @@ class SessionService:
         title = getattr(memory_record, "title", "Untitled")
         content = getattr(memory_record, "content", "")
         confidence = getattr(memory_record, "confidence", 1.0)
+        # Fall back to the record's own id so the ID is logged on every path
+        memory_id = memory_id or getattr(memory_record, "id", None)
+        source = getattr(memory_record, "source", None)
+        provenance = getattr(memory_record, "provenance", None)
+        status = getattr(memory_record, "status", None)
+        tags = getattr(memory_record, "tags", None)
 
         with open(summary_file, "a", encoding="utf-8") as f:
             if write_header:
@@ -373,6 +379,14 @@ class SessionService:
             if memory_id:
                 f.write(f"- **Memory ID**: `{memory_id}`\n")
             f.write(f"- **Confidence**: `{confidence}`\n")
+            if status:
+                f.write(f"- **Status**: `{status}`\n")
+            if source:
+                f.write(f"- **Source**: `{source}`\n")
+            if provenance:
+                f.write(f"- **Provenance**: `{provenance}`\n")
+            if tags:
+                f.write(f"- **Tags**: {', '.join(f'`{t}`' for t in tags)}\n")
             f.write("- **Content**:\n")
             f.write(f"> {content.replace(chr(10), chr(10) + '> ')}\n\n")
             f.write("---\n\n")
