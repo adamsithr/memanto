@@ -5,9 +5,15 @@ MEMANTO API Models
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from memanto.app.constants import MemoryType, ScopeType, SourceType, StatusType
+
+
+def _validate_non_blank_content(value: str) -> str:
+    if not value.strip():
+        raise ValueError("Memory content must be a non-empty string")
+    return value
 
 
 # Request Models
@@ -27,6 +33,11 @@ class MemoryStoreRequest(BaseModel):
     ttl_seconds: int | None = None
     user_confirmed: bool = False
 
+    @field_validator("content")
+    @classmethod
+    def validate_content(cls, value: str) -> str:
+        return _validate_non_blank_content(value)
+
 
 class MemoryBatchItem(BaseModel):
     """Single memory item for batch write"""
@@ -40,6 +51,11 @@ class MemoryBatchItem(BaseModel):
     tags: list[str] = Field(default_factory=list)
     ttl_seconds: int | None = None
     id: str | None = None  # Optional custom ID
+
+    @field_validator("content")
+    @classmethod
+    def validate_content(cls, value: str) -> str:
+        return _validate_non_blank_content(value)
 
 
 class MemoryBatchWriteRequest(BaseModel):
@@ -72,6 +88,11 @@ class BatchRememberItem(BaseModel):
         "explicit_statement",
         description="How memory was obtained (explicit_statement, inferred, observed, etc.)",
     )
+
+    @field_validator("content")
+    @classmethod
+    def validate_content(cls, value: str) -> str:
+        return _validate_non_blank_content(value)
 
 
 class RememberRequest(BatchRememberItem):
