@@ -98,6 +98,7 @@ class ConversationMessage(BaseModel):
     @field_validator("role")
     @classmethod
     def role_must_not_be_blank(cls, value: str) -> str:
+        """Reject message roles that contain only whitespace."""
         if not value.strip():
             raise ValueError("role must be a non-empty string")
         return value
@@ -105,6 +106,7 @@ class ConversationMessage(BaseModel):
     @field_validator("content")
     @classmethod
     def content_must_not_be_blank(cls, value: str) -> str:
+        """Reject message content that contains only whitespace."""
         if not value.strip():
             raise ValueError("content must be a non-empty string")
         return value
