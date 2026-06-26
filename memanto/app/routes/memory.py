@@ -50,6 +50,7 @@ _config_manager = ConfigManager()
 
 
 def _validate_memory_type_filters(value: list[str] | None) -> list[str] | None:
+    """Validate optional memory type filters against supported memory types."""
     if value is None:
         return value
 
@@ -76,6 +77,7 @@ class RecallRequest(BaseModel):
     @field_validator("type")
     @classmethod
     def type_filters_must_be_valid(cls, value: list[str] | None) -> list[str] | None:
+        """Reject recall filters that are not supported memory types."""
         return _validate_memory_type_filters(value)
 
 
@@ -90,6 +92,7 @@ class RecallAsOfRequest(BaseModel):
     @field_validator("type")
     @classmethod
     def type_filters_must_be_valid(cls, value: list[str] | None) -> list[str] | None:
+        """Reject as-of recall filters that are not supported memory types."""
         return _validate_memory_type_filters(value)
 
     @field_validator("as_of", mode="before")
@@ -129,6 +132,7 @@ class RecallChangedSinceRequest(BaseModel):
     @field_validator("type")
     @classmethod
     def type_filters_must_be_valid(cls, value: list[str] | None) -> list[str] | None:
+        """Reject changed-since recall filters that are not supported memory types."""
         return _validate_memory_type_filters(value)
 
     @field_validator("since", mode="before")
@@ -164,6 +168,7 @@ class RecallRecentRequest(BaseModel):
     @field_validator("type")
     @classmethod
     def type_filters_must_be_valid(cls, value: list[str] | None) -> list[str] | None:
+        """Reject recent-recall filters that are not supported memory types."""
         return _validate_memory_type_filters(value)
 
 
