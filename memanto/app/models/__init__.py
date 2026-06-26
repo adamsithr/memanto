@@ -172,6 +172,7 @@ class AnswerRequest(BaseModel):
     @field_validator("question")
     @classmethod
     def question_must_not_be_blank(cls, value: str) -> str:
+        """Reject questions that contain only whitespace."""
         if not value.strip():
             raise ValueError("question must be a non-empty string")
         return value
