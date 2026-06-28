@@ -91,6 +91,7 @@ def test_read_service_adds_computed_trust_metrics():
 
 def test_timezone_aware_created_at_does_not_raise_error():
     """Verify that timezone-aware created_at timestamps do not raise TypeError in compute_confidence or trust_score"""
+    from datetime import timezone
     memory = MemoryRecord(
         type="preference",
         title="test-pref",
@@ -100,7 +101,7 @@ def test_timezone_aware_created_at_does_not_raise_error():
         actor_id="user-123",
         source="user",
         confidence=0.9,
-        created_at=datetime.fromisoformat("2026-06-26T12:00:00+00:00")
+        created_at=datetime.now(timezone.utc)
     )
     
     # Should not raise TypeError: can't subtract offset-naive and offset-aware datetimes
