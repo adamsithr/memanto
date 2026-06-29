@@ -119,6 +119,26 @@ class TestSessionService:
         print("✅ Session ended successfully")
         print(f"   Duration: {summary.duration_hours} hours")
 
+    def test_get_active_session_ignores_invalid_session_file(self, session_service):
+        """A corrupt active session file should not crash status checks."""
+        active_marker = session_service.sessions_dir / "active"
+        active_marker.write_text("broken-agent")
+        (session_service.sessions_dir / "broken-agent.json").write_text("{")
+
+        assert session_service.get_active_session() is None
+
+    def test_list_sessions_skips_invalid_session_files(self, session_service):
+        """One corrupt session record must not hide all valid sessions."""
+        valid_session = session_service.create_session(
+            agent_id="valid-agent",
+            duration_hours=1,
+        )
+        (session_service.sessions_dir / "broken-agent.json").write_text("{")
+
+        sessions = session_service.list_sessions()
+
+        assert [session.agent_id for session in sessions] == [valid_session.agent_id]
+
 
 class TestAgentService:
     """Unit tests for AgentService"""
