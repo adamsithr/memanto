@@ -14,7 +14,7 @@ from typing import Any
 import jwt
 
 from memanto.app.config import get_data_dir, settings
-from memanto.app.core import create_memory_scope
+from memanto.app.core import agent_namespace
 from memanto.app.models.session import (
     AgentPattern,
     Session,
@@ -68,12 +68,11 @@ class SessionService:
 
     def _generate_namespace(self, agent_id: str) -> str:
         """
-        Generate namespace for agent using core MemoryScope
+        Generate the Moorcheh namespace for an agent.
 
-        Format: memanto_{scope}_{scope_id}
+        Format: memanto_agent_{agent_id}
         """
-        scope = create_memory_scope(scope_type="agent", scope_id=agent_id)
-        return scope.to_namespace()
+        return agent_namespace(agent_id)
 
     def _generate_session_id(self) -> str:
         """Generate unique session ID"""

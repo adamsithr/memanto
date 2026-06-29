@@ -7,7 +7,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from memanto.app.constants import MemoryType, ScopeType, SourceType, StatusType
+from memanto.app.constants import MemoryType, SourceType, StatusType
 
 
 # Request Models
@@ -17,8 +17,7 @@ class MemoryStoreRequest(BaseModel):
     type: MemoryType
     title: str = Field(max_length=100)
     content: str = Field(max_length=10000)
-    scope_type: ScopeType
-    scope_id: str
+    agent_id: str
     actor_id: str
     source: SourceType
     source_ref: str | None = None
@@ -48,8 +47,7 @@ class MemoryBatchWriteRequest(BaseModel):
     memories: list[MemoryBatchItem] = Field(
         ..., min_length=1, max_length=100, description="1-100 memories per batch"
     )
-    scope_type: ScopeType
-    scope_id: str
+    agent_id: str
     actor_id: str
     user_confirmed: bool = False
 
@@ -174,48 +172,21 @@ class MemoryUpdateRequest(BaseModel):
 
 class MemorySearchRequest(BaseModel):
     query: str
-    scope_type: ScopeType | None = None
-    scope_id: str | None = None
+    agent_id: str | None = None
     memory_types: list[MemoryType] | None = None
     tags: list[str] | None = None
-    limit: int = Field(default=10, ge=1, le=100)
-
-
-class ScopeDefinition(BaseModel):
-    """Individual scope for multi-scope search"""
-
-    scope_type: ScopeType
-    scope_id: str
-
-
-class MemoryMultiScopeSearchRequest(BaseModel):
-    """Request to search across multiple scopes simultaneously"""
-
-    query: str
-    scopes: list[ScopeDefinition] = Field(
-        ..., min_length=1, max_length=10, description="1-10 scopes to search across"
-    )
-    memory_types: list[MemoryType] | None = None
-    tags: list[str] | None = None
-    min_confidence: float | None = Field(None, ge=0.0, le=1.0)
-    status_filter: list[str] | None = None
-    min_similarity_score: float | None = Field(
-        None, ge=0.0, le=1.0, description="Minimum similarity score threshold"
-    )
     limit: int = Field(default=10, ge=1, le=100)
 
 
 class MemoryAnswerRequest(BaseModel):
     query: str
-    scope_type: ScopeType | None = None
-    scope_id: str | None = None
+    agent_id: str | None = None
 
 
 class ContextSummarizationRequest(BaseModel):
     """Request to summarize context in a scope"""
 
-    scope_type: ScopeType
-    scope_id: str
+    agent_id: str
     actor_id: str
     summary_title: str = Field(default="Context Summary", max_length=100)
     memory_types: list[MemoryType] | None = None
@@ -228,8 +199,7 @@ class CustomSummarizationRequest(BaseModel):
 
     memory_ids: list[str] = Field(..., min_length=1, max_length=100)
     namespace: str
-    scope_type: ScopeType
-    scope_id: str
+    agent_id: str
     actor_id: str
     summary_title: str = Field(default="Custom Summary", max_length=100)
 
@@ -237,8 +207,7 @@ class CustomSummarizationRequest(BaseModel):
 class ConversationCompressionRequest(BaseModel):
     """Request to compress old conversation history"""
 
-    scope_type: ScopeType
-    scope_id: str
+    agent_id: str
     actor_id: str
     days_to_compress: int = Field(default=7, ge=1, le=365)
     keep_recent_count: int = Field(default=10, ge=0, le=50)
@@ -252,8 +221,7 @@ class MemoryResponse(BaseModel):
     type: MemoryType
     title: str
     content: str
-    scope_type: ScopeType
-    scope_id: str
+    agent_id: str
     actor_id: str
     source: SourceType
     source_ref: str | None
@@ -375,8 +343,7 @@ class MemoryItem(BaseModel):
     ttl_seconds: int | None = None
     actor_id: str | None = None
     source: str | None = None
-    scope_type: str | None = None
-    scope_id: str | None = None
+    agent_id: str | None = None
     score: float | None = None
     provenance: str = "explicit_statement"
     change_type: str | None = None

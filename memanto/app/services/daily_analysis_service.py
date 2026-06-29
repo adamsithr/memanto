@@ -12,7 +12,7 @@ from typing import Any, cast
 from memanto.app.clients.backend import get_active_llm_model
 from memanto.app.clients.moorcheh import get_moorcheh_client
 from memanto.app.config import get_data_dir, settings
-from memanto.app.core import create_memory_scope
+from memanto.app.core import agent_namespace
 from memanto.app.services.session_service import get_session_service
 from memanto.app.utils.errors import MemoryError
 from memanto.app.utils.temporal_helpers import (
@@ -70,8 +70,7 @@ class DailyAnalysisService:
         full_text = "\n\n---\n\n".join(combined_content)
 
         client = get_moorcheh_client()
-        scope = create_memory_scope("agent", agent_id)
-        namespace = scope.to_namespace()
+        namespace = agent_namespace(agent_id)
 
         summary_prompt = f"""
 Summarize the following session memories from {date} into a concise natural language daily summary.
@@ -155,8 +154,7 @@ Format the output as a Markdown report:
         full_text = "\n\n---\n\n".join(combined_content)
 
         client = get_moorcheh_client()
-        scope = create_memory_scope("agent", agent_id)
-        namespace = scope.to_namespace()
+        namespace = agent_namespace(agent_id)
 
         conflict_prompt = f"""
 Analyze the following session memories from {date} against historical knowledge for this agent.

@@ -98,8 +98,48 @@ simplified accordingly (they always build an `agent` scope now).
   `legacy/memory.py`, and it had a broken `from memanto.memanto.app.constants`
   import (double `memanto`) proving it never ran.
 
-`scope_type` / `scope_id` themselves remain — they are load-bearing (every
-namespace is derived from them via `MemoryScope.to_namespace()`).
+`scope_type` / `scope_id` were still present at this stage; they were fully
+removed in the next step (see section 4).
+
+---
+
+## 4. Collapse scope to a single `agent_id` (2026-06-29)
+
+The remaining `scope_type` + `scope_id` pair was replaced everywhere with a
+single `agent_id`. The concept is now simply: a memory belongs to an agent, and
+its namespace is `memanto_agent_{agent_id}` (unchanged on the wire).
+
+- `core.py`: removed `MemoryScope`, `create_memory_scope`, `parse_namespace`,
+  `from_namespace`, `validate_namespace_format`, and `MemoryRecord.get_scope()`.
+  `MemoryRecord` now has `agent_id` (not `scope_type`/`scope_id`); namespaces are
+  built by the free function `agent_namespace(agent_id)` and `MemoryRecord.namespace()`.
+- `constants.py`: `ScopeType` and `VALID_SCOPE_TYPES` removed entirely.
+- `to_moorcheh_document()` writes a flat `agent_id` field (was `scope_type`/`scope_id`);
+  `MemoryReadService._format_memory_item()` reads it back as `agent_id`.
+- All construction / search sites updated: `routes/memory.py`, `agent_service`,
+  `session_service`, `daily_analysis_service`, `memory_write_service`,
+  `memory_read_service` (search/answer params collapsed to `agent_id`), and both
+  CLI clients (`direct_client`, `sdk_client`).
+- `models/__init__.py`: deleted the multi-scope models `ScopeDefinition` and
+  `MemoryMultiScopeSearchRequest`; renamed `scope_type`/`scope_id` → `agent_id`
+  on the rest (`MemoryStoreRequest`, `MemoryBatchWriteRequest`,
+  `MemorySearchRequest`, `MemoryAnswerRequest`, `ContextSummarizationRequest`,
+  `CustomSummarizationRequest`, `ConversationCompressionRequest`,
+  `MemoryResponse`, `MemoryItem`). `sdks/typescript/openapi.json` `MemoryItem`
+  updated to match.
+- `utils/ids.py`: removed the dead `generate_namespace_id` /
+  `extract_scope_type_from_namespace` (wrong colon format, unused).
+- `utils/logging.py` + `utils/rate_limiting.py`: dropped the `scope_type` /
+  `scope_id` plumbing params (rate-limit keys are per-agent).
+
+**`utils/auth.py` → `legacy/auth.py`:** the whole file was the old tenant /
+JWT / multi-scope access-control model (`AuthService`, `authorize_scope`,
+`require_scope_access`, `scopes_allowed = ["user","workspace","agent","session"]`).
+It is entirely dead — the live app uses session-based auth (`routes/auth_deps.py`
+→ `get_current_session`), and the only remaining reference to `auth.py` is from
+the already-dead `legacy/universal_endpoints.py`. Rather than rename its
+`scope_type`/`scope_id` (a different, access-control concept) it was moved to
+the dump wholesale.
 
 ---
 

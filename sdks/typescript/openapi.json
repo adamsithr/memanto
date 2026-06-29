@@ -3013,7 +3013,7 @@
             ],
             "title": "Source"
           },
-          "scope_type": {
+          "agent_id": {
             "anyOf": [
               {
                 "type": "string"
@@ -3022,18 +3022,7 @@
                 "type": "null"
               }
             ],
-            "title": "Scope Type"
-          },
-          "scope_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Scope Id"
+            "title": "Agent Id"
           },
           "score": {
             "anyOf": [

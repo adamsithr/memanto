@@ -41,7 +41,7 @@ class MemoryWriteService:
             memory = self._parser.parse_memory(memory)
 
             # Add namespace
-            namespace = memory.get_scope().to_namespace()
+            namespace = memory.namespace()
 
             # skip validation for speed
             ## Validate memory
@@ -120,7 +120,7 @@ class MemoryWriteService:
                     memory = self._parser.parse_memory(memory)
 
                     # Add namespace
-                    namespace = memory.get_scope().to_namespace()
+                    namespace = memory.namespace()
 
                     if first_namespace is None:
                         first_namespace = namespace
@@ -263,8 +263,7 @@ class MemoryWriteService:
                     "title", existing_memory_data.get("title", "Updated Memory")
                 ),
                 content=updates.get("content", existing_memory_data.get("content", "")),
-                scope_type=metadata.get("scope_type", "agent"),
-                scope_id=metadata.get("scope_id", "unknown"),
+                agent_id=metadata.get("agent_id", "unknown"),
                 actor_id=updates.get("actor_id", metadata.get("actor_id", "unknown")),
                 source=updates.get("source", metadata.get("source", "system")),
                 source_ref=updates.get("source_ref", metadata.get("source_ref")),

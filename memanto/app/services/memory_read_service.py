@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 from memanto.app.clients.backend import get_active_llm_model
 from memanto.app.config import settings
-from memanto.app.core import create_memory_scope
+from memanto.app.core import agent_namespace
 from memanto.app.utils.errors import MemoryError
 
 
@@ -59,8 +59,7 @@ class MemoryReadService:
     def search_memories(
         self,
         query: str,
-        scope_type: str | None = None,
-        scope_id: str | None = None,
+        agent_id: str | None = None,
         type: list[str] | None = None,
         tags: list[str] | None = None,
         min_confidence: float | None = None,
@@ -82,7 +81,7 @@ class MemoryReadService:
         """
         try:
             # Determine namespaces to search
-            namespaces = self._get_search_namespaces(scope_type, scope_id)
+            namespaces = self._get_search_namespaces(agent_id)
 
             if not namespaces:
                 return {"results": [], "total_found": 0, "execution_time": 0}
@@ -179,7 +178,7 @@ class MemoryReadService:
 
             as_of_dt = parse_iso_timestamp(as_of_date)
 
-            namespaces = self._get_search_namespaces("agent", agent_id)
+            namespaces = self._get_search_namespaces(agent_id)
             if not namespaces:
                 return {
                     "results": [],
@@ -247,7 +246,7 @@ class MemoryReadService:
 
             since_dt = parse_iso_timestamp(since_date)
 
-            namespaces = self._get_search_namespaces("agent", agent_id)
+            namespaces = self._get_search_namespaces(agent_id)
             if not namespaces:
                 return {"results": [], "total_found": 0, "since_date": since_date}
 
@@ -323,7 +322,7 @@ class MemoryReadService:
         try:
             from memanto.app.utils.temporal_helpers import parse_iso_timestamp
 
-            namespaces = self._get_search_namespaces("agent", agent_id)
+            namespaces = self._get_search_namespaces(agent_id)
             if not namespaces:
                 return {"results": [], "total_found": 0}
 
@@ -548,14 +547,13 @@ class MemoryReadService:
         return filtered
 
     def generate_answer(
-        self, query: str, scope_type: str | None = None, scope_id: str | None = None
+        self, query: str, agent_id: str | None = None
     ) -> dict[str, Any]:
         """Generate AI answer from memories"""
         try:
             # Determine namespace for answer generation
-            if scope_type and scope_id:
-                scope = create_memory_scope("agent", scope_id)
-                namespace = scope.to_namespace()
+            if agent_id:
+                namespace = agent_namespace(agent_id)
             else:
                 # Use first available namespace
                 namespaces = self.namespace_service.list_namespaces()
@@ -581,16 +579,13 @@ class MemoryReadService:
         except Exception as e:
             raise MemoryError(f"Failed to generate answer: {e}")
 
-    def _get_search_namespaces(
-        self, scope_type: str | None = None, scope_id: str | None = None
-    ) -> list[str]:
+    def _get_search_namespaces(self, agent_id: str | None = None) -> list[str]:
         """Get namespaces to search based on filters"""
         from typing import cast
 
-        if scope_type and scope_id:
-            # Search specific scope
-            scope = create_memory_scope("agent", scope_id)
-            return [cast(str, scope.to_namespace())]
+        if agent_id:
+            # Search a specific agent's namespace
+            return [agent_namespace(agent_id)]
         else:
             # Search all namespaces
             return cast(list[str], self.namespace_service.list_namespaces())
@@ -706,8 +701,7 @@ class MemoryReadService:
             "actor_id": get_field("actor_id"),
             "source": get_field("source"),
             "source_ref": get_field("source_ref"),
-            "scope_type": get_field("scope_type"),
-            "scope_id": get_field("scope_id"),
+            "agent_id": get_field("agent_id"),
             "score": item.get("score"),  # Search relevance score
             # Provenance
             "provenance": provenance,

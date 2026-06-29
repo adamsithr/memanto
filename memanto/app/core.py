@@ -2,7 +2,6 @@
 MEMANTO Core Architecture - Namespace Strategy & Memory Records
 """
 
-import re
 import uuid
 from datetime import datetime, timedelta
 from typing import Any
@@ -12,32 +11,14 @@ from pydantic import BaseModel, Field
 from memanto.app.constants import (
     MemoryType,
     ProvenanceType,
-    ScopeType,
     SourceType,
     StatusType,
 )
 
 
-class MemoryScope(BaseModel):
-    """Defines the scope for memory isolation"""
-
-    scope_type: ScopeType
-    scope_id: str
-
-    def to_namespace(self) -> str:
-        """Convert scope to Moorcheh namespace using deterministic mapping"""
-        # memanto_{scope_type}_{scope_id}
-        return f"memanto_{self.scope_type}_{self.scope_id}"
-
-    @classmethod
-    def from_namespace(cls, namespace: str) -> "MemoryScope":
-        """Parse namespace back to scope"""
-        from typing import cast
-
-        parts = namespace.split("_")
-        if len(parts) != 3 or parts[0] != "memanto":
-            raise ValueError(f"Invalid MEMANTO namespace format: {namespace}")
-        return cls(scope_type=cast(ScopeType, parts[1]), scope_id=parts[2])
+def agent_namespace(agent_id: str) -> str:
+    """Map an agent_id to its Moorcheh namespace: memanto_agent_{agent_id}."""
+    return f"memanto_agent_{agent_id}"
 
 
 class MemoryRecord(BaseModel):
@@ -50,8 +31,7 @@ class MemoryRecord(BaseModel):
     content: str = Field(max_length=10000)
 
     # Metadata fields
-    scope_type: ScopeType
-    scope_id: str
+    agent_id: str
     actor_id: str
     source: SourceType
     source_ref: str | None = None
@@ -88,8 +68,7 @@ class MemoryRecord(BaseModel):
             "text": text,
             # Metadata fields (flat structure for Moorcheh filtering)
             "memory_type": memory_type,
-            "scope_type": self.scope_type,
-            "scope_id": self.scope_id,
+            "agent_id": self.agent_id,
             "actor_id": self.actor_id,
             "source": self.source,
             "confidence": self.confidence,
@@ -113,28 +92,11 @@ class MemoryRecord(BaseModel):
 
         return document
 
-    def get_scope(self) -> MemoryScope:
-        """Get the memory scope"""
-        return MemoryScope(scope_type=self.scope_type, scope_id=self.scope_id)
+    def namespace(self) -> str:
+        """The Moorcheh namespace this memory belongs to."""
+        return agent_namespace(self.agent_id)
 
     def set_ttl(self, seconds: int):
         """Set TTL and expiration"""
         self.ttl_seconds = seconds
         self.expires_at = datetime.utcnow() + timedelta(seconds=seconds)
-
-
-# Utility functions
-def create_memory_scope(scope_type: ScopeType, scope_id: str) -> MemoryScope:
-    """Helper to create memory scope"""
-    return MemoryScope(scope_type=scope_type, scope_id=scope_id)
-
-
-def parse_namespace(namespace: str) -> MemoryScope:
-    """Helper to parse namespace"""
-    return MemoryScope.from_namespace(namespace)
-
-
-def validate_namespace_format(namespace: str) -> bool:
-    """Validate namespace follows MEMANTO convention"""
-    pattern = r"^memanto_(user|workspace|agent|session)_[a-zA-Z0-9_-]+$"
-    return bool(re.match(pattern, namespace))
