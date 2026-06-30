@@ -155,6 +155,7 @@ class MemoryEditRequest(BaseModel):
 
 
 def enforce_session_scope(session: Session, agent_id: str) -> None:
+    """Ensure a session can only access the agent scope it was issued for."""
     if session.agent_id != agent_id:
         raise map_error_to_http_exception(
             AuthorizationError(
