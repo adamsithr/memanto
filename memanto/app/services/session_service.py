@@ -434,6 +434,9 @@ class SessionService:
             session_id: The current session's identifier
             memory_id: The Moorcheh memory ID that was deleted
         """
+        validate_safe_id(agent_id, "agent_id")
+        validate_safe_id(session_id, "session_id")
+
         dt_now = utc_now()
         timestamp = dt_now.strftime("%Y-%m-%d %H:%M:%S")
         date_str = dt_now.strftime("%Y-%m-%d")

@@ -207,8 +207,9 @@ class MemoryExportService:
         Returns:
             Absolute Path to the written file.
         """
+        validate_safe_id(agent_id, "agent_id")
+
         if output_path is None:
-            validate_safe_id(agent_id, "agent_id")
             self.exports_dir.mkdir(parents=True, exist_ok=True)
             output_path = self.exports_dir / f"{agent_id}_memory.md"
         else:

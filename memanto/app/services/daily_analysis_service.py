@@ -140,11 +140,11 @@ Format the output as a Markdown report:
         """
         Generate a structured conflict report (Contradictions, Conflicts, Updates, Duplicates).
         """
-        conflicts_dir = Path.home() / ".memanto" / "conflicts"
-        conflicts_dir.mkdir(parents=True, exist_ok=True)
-
         validate_safe_id(agent_id, "agent_id")
         validate_safe_id(date, "date")
+
+        conflicts_dir = Path.home() / ".memanto" / "conflicts"
+        conflicts_dir.mkdir(parents=True, exist_ok=True)
         pattern = f"{agent_id}_{date}_*_summary.md"
         session_files = list(self.sessions_dir.glob(pattern))
 
