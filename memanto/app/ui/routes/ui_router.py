@@ -29,7 +29,7 @@ _config_manager = ConfigManager()
 
 # Path to the static directory
 STATIC_DIR = Path(__file__).parent.parent / "static"
-_SAFE_AGENT_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
+_SAFE_AGENT_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
 _SAFE_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
