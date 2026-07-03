@@ -309,7 +309,7 @@ class TestMemoryWriteServiceDelete:
             ({"status": "success", "deleted_ids": ["m1"]}, True),
             ({"status": "success", "deleted_ids": []}, False),
             ({"status": "success"}, True),
-            ({"requested_ids": ["m1"]}, True),
+            ({"requested_ids": ["m1"]}, False),
             ({}, False),
         ],
     )
@@ -319,6 +319,46 @@ class TestMemoryWriteServiceDelete:
         client = MagicMock()
         client.documents.delete.return_value = response
         assert MemoryWriteService(client).delete_memory("m1", "ns") is expected
+
+    def test_update_memory_accepts_onprem_delete_response(self):
+        from memanto.app.services.memory_write_service import MemoryWriteService
+
+        client = MagicMock()
+        client.documents.delete.return_value = {
+            "status": "success",
+            "deleted_ids": ["mem-1"],
+        }
+        client.documents.upload.return_value = {"status": "queued"}
+        existing_memory = {
+            "id": "mem-1",
+            "type": "fact",
+            "title": "Original title",
+            "content": "Original content",
+            "scope_type": "agent",
+            "scope_id": "test-agent",
+            "actor_id": "tester",
+            "source": "manual",
+            "confidence": 0.8,
+            "status": "active",
+            "tags": [],
+        }
+
+        with patch(
+            "memanto.app.services.memory_read_service.MemoryReadService.get_memory",
+            return_value=existing_memory,
+        ):
+            result = MemoryWriteService(client).update_memory(
+                "mem-1",
+                "memanto_agent_test-agent",
+                {"content": "Updated content"},
+            )
+
+        assert result["action"] == "updated"
+        assert result["status"] == "queued"
+        client.documents.delete.assert_called_once_with(
+            namespace_name="memanto_agent_test-agent", ids=["mem-1"]
+        )
+        client.documents.upload.assert_called_once()
 
 
 class TestForgetEndToEnd:
