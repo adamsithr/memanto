@@ -171,9 +171,17 @@ class SdkClient:
         Return the active session for *agent_id*, validating it like the FastAPI
         dependency ``get_current_session``.
         """
-        # Cache hit: avoid redundant disk I/O and JWT decodes in the same request
-        if self._cached_session and self.agent_id == agent_id:
-            return self._cached_session
+        # Cache hit: avoid redundant disk I/O and JWT decodes while the session
+        # remains active.
+        if self._cached_session:
+            if self.agent_id == agent_id and self._cached_session.agent_id == agent_id:
+                if not self._cached_session.is_active():
+                    self._cached_session = None
+                    raise SessionExpiredError(
+                        f"Cached session for agent {agent_id} is no longer active"
+                    )
+                return self._cached_session
+            self._cached_session = None
 
         if not self.session_token or not self.agent_id:
             raise SessionError(
@@ -299,6 +307,10 @@ class SdkClient:
         """
         logger.debug("Deleting agent '%s'", agent_id)
         self._get_agent_service().delete_agent(agent_id)
+        if self.agent_id == agent_id:
+            self.session_token = None
+            self.agent_id = None
+            self._cached_session = None
         return {"status": "deleted", "agent_id": agent_id}
 
     # Session Management
@@ -339,6 +351,7 @@ class SdkClient:
 
         self.session_token = session.session_token
         self.agent_id = agent_id
+        self._cached_session = session
 
         return {
             "session_token": session.session_token,
@@ -362,6 +375,7 @@ class SdkClient:
         summary = self._get_session_service().end_session(agent_id)
         self.session_token = None
         self.agent_id = None
+        self._cached_session = None
         return cast(dict[str, Any], summary.model_dump(mode="json"))
 
     def get_session_info(self) -> dict[str, Any]:
