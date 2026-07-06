@@ -74,6 +74,7 @@ def verify_moorcheh_api_key() -> str:
 
 
 def get_current_session(
+    response: Response,
     x_session_token: str | None = Header(None),
     session_cookie: str | None = Cookie(None, alias=SESSION_COOKIE_NAME),
 ) -> Session:
@@ -113,6 +114,13 @@ def get_current_session(
         )
         if renewed:
             session = renewed
+            # The renewed session gets a new session_id/token, invalidating
+            # the one the caller just presented. Browser callers authenticate
+            # via the HttpOnly cookie (never re-read the token in JS), so
+            # without this the cookie goes stale and the very next request
+            # fails signature/session_id validation.
+            if session_cookie:
+                set_session_cookie(response, renewed.session_token)
 
         return session
 

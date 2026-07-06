@@ -1696,6 +1696,65 @@ class TestCWE200ApiKeyLeak:
         assert response.json()["agent_id"] == self.TEST_AGENT_ID
 
     @pytest.mark.asyncio
+    async def test_cookie_session_auto_renewal_refreshes_cookie(
+        self, client, auth_headers, mock_moorcheh
+    ):
+        """Auto-renewal must reissue the HttpOnly cookie, not just the JSON token.
+
+        get_current_session() auto-renews near-expiry sessions with a brand
+        new session_id/token, which immediately invalidates whatever token the
+        caller just presented (validate_session cross-checks session_id
+        against the persisted record). Browser callers authenticate purely via
+        the cookie, so if the renewed token isn't written back into a new
+        Set-Cookie, the very next request fails with InvalidSessionTokenError.
+        """
+        await client.post(
+            "/api/v2/agents",
+            headers=auth_headers,
+            json={"agent_id": self.TEST_AGENT_ID},
+        )
+        activate_resp = await client.post(
+            f"/api/v2/agents/{self.TEST_AGENT_ID}/activate", headers=auth_headers
+        )
+        assert activate_resp.status_code == 200
+        old_token = activate_resp.json()["session_token"]
+        client.cookies.set("memanto_session_token", old_token)
+
+        # Force the existing session to look near-expiry so the next request
+        # triggers auto-renewal, without needing to wait out real time.
+        with patch.object(settings, "SESSION_EXTEND_THRESHOLD_MINUTES", 10**9):
+            response = await client.post(
+                f"/api/v2/agents/{self.TEST_AGENT_ID}/recall/recent",
+                headers=auth_headers,
+                json={},
+            )
+        assert response.status_code == 200
+
+        cookie = response.headers.get("set-cookie", "")
+        assert "memanto_session_token=" in cookie
+        assert f"memanto_session_token={old_token}" not in cookie
+        new_token = cookie.split("memanto_session_token=")[1].split(";")[0]
+        assert new_token != old_token
+
+        # The old (now-superseded) token must no longer authenticate.
+        client.cookies.set("memanto_session_token", old_token)
+        stale_response = await client.post(
+            f"/api/v2/agents/{self.TEST_AGENT_ID}/recall/recent",
+            headers=auth_headers,
+            json={},
+        )
+        assert stale_response.status_code == 401
+
+        # The freshly-renewed token must work.
+        client.cookies.set("memanto_session_token", new_token)
+        fresh_response = await client.post(
+            f"/api/v2/agents/{self.TEST_AGENT_ID}/recall/recent",
+            headers=auth_headers,
+            json={},
+        )
+        assert fresh_response.status_code == 200
+
+    @pytest.mark.asyncio
     async def test_traversal_filename_is_sanitized(
         self, client, auth_headers, mock_moorcheh
     ):
