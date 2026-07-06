@@ -196,6 +196,14 @@ class AnswerRequest(BaseModel):
     )
     kiosk_mode: bool = Field(False, description="Kiosk mode setting")
 
+    @field_validator("question")
+    @classmethod
+    def question_must_not_be_blank(cls, value: str) -> str:
+        """Reject questions that contain only whitespace."""
+        if not value.strip():
+            raise ValueError("question must be a non-empty string")
+        return value
+
 
 class MemoryUpdateRequest(BaseModel):
     """Request to update an existing memory"""

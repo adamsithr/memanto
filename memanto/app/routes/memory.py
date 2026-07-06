@@ -71,6 +71,14 @@ class RecallRequest(BaseModel):
     )
     type: list[str] | None = Field(default=None, description="Memory type filters")
 
+    @field_validator("query")
+    @classmethod
+    def query_must_not_be_blank(cls, value: str) -> str:
+        """Reject recall queries that contain only whitespace."""
+        if not value.strip():
+            raise ValueError("query must be a non-empty string")
+        return value
+
 
 class RecallAsOfRequest(BaseModel):
     """Request body for point-in-time memory recall."""
