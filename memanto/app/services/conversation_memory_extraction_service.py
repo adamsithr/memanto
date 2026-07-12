@@ -163,7 +163,7 @@ class ConversationMemoryExtractionService:
                     "title": title,
                     "content": content,
                     "confidence": confidence,
-                    "source": "conversation",
+                    "source": "system",
                     "provenance": "inferred",
                 }
             )
